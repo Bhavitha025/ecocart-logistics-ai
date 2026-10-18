@@ -1,0 +1,1026 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EcoCart — Route Optimization</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f8fafc;
+    --surface: #ffffff;
+    --surface2: #f1f5f9;
+    --border: #e2e8f0;
+    --accent: #059669;
+    --accent2: #ea580c;
+    --accent3: #6366f1;
+    --dfs-col: #ea580c;
+    --bfs-col: #6366f1;
+    --astar-col: #059669;
+    --text: #0f172a;
+    --text-dim: #475569;
+    --text-muted: #94a3b8;
+    --font-display: 'Syne', sans-serif;
+    --font-mono: 'Space Mono', monospace;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-display);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Light grid bg */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(5,150,105,0.06) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(5,150,105,0.06) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .wrapper {
+    position: relative;
+    z-index: 1;
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 2rem 1.5rem 4rem;
+  }
+
+  /* Header */
+  header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 2.5rem;
+    gap: 1rem;
+    flex-wrap: wrap;
+  }
+
+  .brand {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+
+  .brand-tag {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--accent);
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+  }
+
+  h1 {
+    font-size: clamp(1.6rem, 4vw, 2.4rem);
+    font-weight: 800;
+    line-height: 1.1;
+    color: #fff;
+  }
+
+  h1 span {
+    color: var(--accent);
+  }
+
+  .q-badge {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 0.5rem 1rem;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-dim);
+    white-space: nowrap;
+    align-self: flex-start;
+  }
+
+  /* Controls */
+  .controls {
+    display: flex;
+    gap: 0.75rem;
+    margin-bottom: 1.25rem;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+
+  .ctrl-group {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 0.4rem 0.75rem;
+  }
+
+  .ctrl-group label {
+    font-size: 11px;
+    color: var(--text-dim);
+    font-family: var(--font-mono);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  .ctrl-group select {
+    background: transparent;
+    border: none;
+    color: var(--text);
+    font-family: var(--font-display);
+    font-size: 13px;
+    cursor: pointer;
+    outline: none;
+  }
+
+  .ctrl-group select option {
+    background: #ffffff;
+    color: #0f172a;
+  }
+
+  .algo-btns {
+    display: flex;
+    gap: 0.5rem;
+  }
+
+  .algo-btn {
+    padding: 0.45rem 1rem;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text-dim);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+    letter-spacing: 0.05em;
+  }
+
+  .algo-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+  .algo-btn.active-dfs { background: rgba(249,115,22,0.15); border-color: var(--dfs-col); color: var(--dfs-col); }
+  .algo-btn.active-bfs { background: rgba(129,140,248,0.15); border-color: var(--bfs-col); color: var(--bfs-col); }
+  .algo-btn.active-astar { background: rgba(0,212,168,0.15); border-color: var(--astar-col); color: var(--astar-col); }
+
+  .run-btn {
+    padding: 0.5rem 1.4rem;
+    border-radius: 8px;
+    border: none;
+    background: var(--accent);
+    color: #fff;
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .run-btn:hover { background: #047857; transform: translateY(-1px); }
+
+  .step-btn {
+    padding: 0.5rem 1.2rem;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text-dim);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .step-btn:hover { border-color: var(--accent3); color: var(--accent3); }
+  .step-btn.stepping { border-color: var(--accent3); color: var(--accent3); background: rgba(129,140,248,0.1); }
+
+  .reset-btn {
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text-dim);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .reset-btn:hover { border-color: #ef4444; color: #ef4444; }
+
+  /* Canvas */
+  .canvas-shell {
+    background: #ffffff;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    position: relative;
+    margin-bottom: 1.25rem;
+    box-shadow: 0 1px 8px rgba(0,0,0,0.06);
+  }
+
+  canvas { display: block; width: 100%; }
+
+  /* Legend */
+  .legend {
+    display: flex;
+    gap: 1.25rem;
+    flex-wrap: wrap;
+    margin-bottom: 1.5rem;
+    padding: 0.75rem 1rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    align-items: center;
+  }
+
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    color: var(--text-dim);
+    font-family: var(--font-mono);
+  }
+
+  .legend-dot {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .legend-line {
+    width: 20px; height: 3px;
+    border-radius: 2px;
+    flex-shrink: 0;
+  }
+
+  /* Stats row */
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+    gap: 0.75rem;
+    margin-bottom: 1.25rem;
+  }
+
+  .stat-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1rem;
+    transition: border-color 0.3s;
+  }
+
+  .stat-card.highlight-dfs { border-color: var(--dfs-col); }
+  .stat-card.highlight-bfs { border-color: var(--bfs-col); }
+  .stat-card.highlight-astar { border-color: var(--astar-col); }
+
+  .stat-label {
+    font-size: 10px;
+    color: var(--text-dim);
+    font-family: var(--font-mono);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 0.4rem;
+  }
+
+  .stat-val {
+    font-size: 1.7rem;
+    font-weight: 800;
+    color: #fff;
+    line-height: 1;
+  }
+
+  .stat-val.colored-dfs { color: var(--dfs-col); }
+  .stat-val.colored-bfs { color: var(--bfs-col); }
+  .stat-val.colored-astar { color: var(--astar-col); }
+
+  /* Path display */
+  .path-display {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 0.9rem 1.1rem;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--text-dim);
+    margin-bottom: 1rem;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    line-height: 1.6;
+  }
+
+  .path-node {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    color: var(--text);
+  }
+
+  .path-arrow {
+    color: var(--text-muted);
+  }
+
+  /* Two-col bottom */
+  .bottom-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+  }
+
+  @media (max-width: 640px) {
+    .bottom-grid { grid-template-columns: 1fr; }
+  }
+
+  .log-box, .compare-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 0.75rem 1rem;
+  }
+
+  .box-title {
+    font-size: 10px;
+    font-family: var(--font-mono);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--text-dim);
+    margin-bottom: 0.6rem;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 0.4rem;
+  }
+
+  .log-scroll {
+    max-height: 140px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+  }
+
+  .log-line {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-dim);
+    padding: 2px 0;
+    border-bottom: 1px solid var(--border);
+    line-height: 1.5;
+  }
+
+  .log-line:last-child { border-bottom: none; }
+
+  .log-line.current { color: var(--accent); }
+
+  /* Compare table */
+  .compare-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: var(--font-mono);
+    font-size: 11px;
+  }
+
+  .compare-table th {
+    color: var(--text-dim);
+    text-align: left;
+    padding: 4px 6px;
+    border-bottom: 1px solid var(--border);
+    font-weight: 400;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    font-size: 10px;
+  }
+
+  .compare-table td {
+    padding: 5px 6px;
+    border-bottom: 1px solid var(--border);
+    color: var(--text);
+  }
+
+  .compare-table tr:last-child td { border-bottom: none; }
+
+  .compare-table .best { color: var(--accent); font-weight: 700; }
+
+  .pill-dfs { color: var(--dfs-col); }
+  .pill-bfs { color: var(--bfs-col); }
+  .pill-astar { color: var(--astar-col); }
+
+  .hint-text {
+    font-size: 11px;
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+    margin-top: 0.5rem;
+    text-align: center;
+  }
+</style>
+</head>
+<body>
+<div class="wrapper">
+
+  <header>
+    <div class="brand">
+      <span class="brand-tag">// Question 3 · EcoCart</span>
+      <h1>Route <span>Optimization</span><br>Prototype</h1>
+    </div>
+    <div class="q-badge">Search Algorithms · DFS / BFS / A*<br>Warehouse → Customer</div>
+  </header>
+
+  <!-- Controls -->
+  <div class="controls">
+    <div class="ctrl-group">
+      <label>Origin</label>
+      <select id="sel-origin"></select>
+    </div>
+    <div class="ctrl-group">
+      <label>Goal</label>
+      <select id="sel-goal"></select>
+    </div>
+    <div class="algo-btns">
+      <button class="algo-btn" id="btn-dfs" onclick="selectAlgo('DFS')">DFS</button>
+      <button class="algo-btn" id="btn-bfs" onclick="selectAlgo('BFS')">BFS</button>
+      <button class="algo-btn active-astar" id="btn-astar" onclick="selectAlgo('A*')">A*</button>
+    </div>
+    <button class="run-btn" onclick="runSelected()">▶ Find Route</button>
+    <button class="step-btn" id="step-btn" onclick="toggleStep()">⏩ Step Through</button>
+    <button class="reset-btn" onclick="resetAll()">↺ Reset</button>
+  </div>
+
+  <!-- Canvas -->
+  <div class="canvas-shell">
+    <canvas id="gc" height="360"></canvas>
+  </div>
+
+  <!-- Legend -->
+  <div class="legend">
+    <div class="legend-item"><span class="legend-dot" style="background:#dbeafe;border:2px solid #2563eb"></span>Warehouse (start)</div>
+    <div class="legend-item"><span class="legend-dot" style="background:#d1fae5;border:2px solid #059669"></span>Customer (goal)</div>
+    <div class="legend-item"><span class="legend-dot" style="background:#fff7ed;border:2px solid #ea580c"></span>DFS path</div>
+    <div class="legend-item"><span class="legend-dot" style="background:#ede9fe;border:2px solid #6366f1"></span>BFS path</div>
+    <div class="legend-item"><span class="legend-dot" style="background:#d1fae5;border:2px solid #059669"></span>A* path</div>
+    <div class="legend-item"><span class="legend-dot" style="background:#ffedd5;border:2px solid #ea580c"></span>Explored</div>
+    <div class="legend-item"><span class="legend-dot" style="background:#f8fafc;border:2px solid #cbd5e1"></span>Unvisited</div>
+    <div class="legend-item"><span class="legend-line" style="background:rgba(255,255,255,0.08)"></span>Road edge</div>
+    <div class="legend-item"><span class="legend-line" style="background:var(--accent)"></span>Optimal edge</div>
+  </div>
+
+  <!-- Stats -->
+  <div class="stats-grid">
+    <div class="stat-card" id="card-cost">
+      <div class="stat-label">Path Cost</div>
+      <div class="stat-val" id="s-cost">—</div>
+    </div>
+    <div class="stat-card" id="card-nodes">
+      <div class="stat-label">Nodes Explored</div>
+      <div class="stat-val" id="s-nodes">—</div>
+    </div>
+    <div class="stat-card" id="card-hops">
+      <div class="stat-label">Path Hops</div>
+      <div class="stat-val" id="s-hops">—</div>
+    </div>
+    <div class="stat-card" id="card-algo">
+      <div class="stat-label">Algorithm</div>
+      <div class="stat-val" id="s-algo" style="font-size:1.3rem">A*</div>
+    </div>
+    <div class="stat-card" id="card-optimal">
+      <div class="stat-label">Optimal?</div>
+      <div class="stat-val" id="s-optimal">—</div>
+    </div>
+  </div>
+
+  <!-- Path display -->
+  <div class="path-display" id="path-display">
+    Select origin & goal, choose an algorithm, then click <strong>Find Route</strong>.
+  </div>
+
+  <!-- Bottom: Log + Compare -->
+  <div class="bottom-grid">
+    <div class="log-box">
+      <div class="box-title">// Exploration Log</div>
+      <div class="log-scroll" id="log-scroll">
+        <div class="log-line" style="color:var(--text-muted)">Waiting for run...</div>
+      </div>
+    </div>
+
+    <div class="compare-box">
+      <div class="box-title">// Algorithm Comparison (default graph)</div>
+      <table class="compare-table">
+        <thead>
+          <tr>
+            <th>Algo</th>
+            <th>Path</th>
+            <th>Cost</th>
+            <th>Nodes</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="pill-dfs">DFS</td>
+            <td>WH→B→E→F→G→C</td>
+            <td>20</td>
+            <td>6</td>
+          </tr>
+          <tr>
+            <td class="pill-bfs">BFS</td>
+            <td>WH→A→D→G→C</td>
+            <td>30</td>
+            <td>13</td>
+          </tr>
+          <tr>
+            <td class="pill-astar best">A*</td>
+            <td>WH→B→C→F→G→C</td>
+            <td class="best">19 ✓</td>
+            <td>8</td>
+          </tr>
+        </tbody>
+      </table>
+      <p style="font-family:var(--font-mono);font-size:10px;color:var(--text-muted);margin-top:8px">
+        A* finds the true optimal cost (19) using the Euclidean heuristic. DFS is fast but suboptimal. BFS explores the most nodes.
+      </p>
+    </div>
+  </div>
+
+  <p class="hint-text">// Click any node on the canvas to set it as origin (1st click) or goal (2nd click)</p>
+</div>
+
+<script>
+// ─── Graph data matching question_3_route_optimization.py ───────────────────
+const GRAPH = {
+  'Warehouse': { 'A': 4, 'B': 2 },
+  'A':         { 'Warehouse': 4, 'C': 5, 'D': 10 },
+  'B':         { 'Warehouse': 2, 'C': 3, 'E': 8 },
+  'C':         { 'A': 5, 'B': 3, 'D': 4, 'F': 6 },
+  'D':         { 'A': 10, 'C': 4, 'G': 11 },
+  'E':         { 'B': 8, 'F': 2 },
+  'F':         { 'C': 6, 'E': 2, 'G': 3 },
+  'G':         { 'D': 11, 'F': 3, 'Customer': 5 },
+  'Customer':  { 'G': 5 }
+};
+
+// Positions from the Python code, scaled to [0,1]
+const RAW_POS = {
+  'Warehouse': [0, 0],
+  'A':         [2, 4],
+  'B':         [2, -1],
+  'C':         [5, 2],
+  'D':         [8, 5],
+  'E':         [6, -3],
+  'F':         [9, -1],
+  'G':         [12, 2],
+  'Customer':  [15, 2]
+};
+
+// Normalise positions to canvas
+function normalise(raw) {
+  const xs = Object.values(raw).map(p => p[0]);
+  const ys = Object.values(raw).map(p => p[1]);
+  const minX = Math.min(...xs), maxX = Math.max(...xs);
+  const minY = Math.min(...ys), maxY = Math.max(...ys);
+  const result = {};
+  for (const [name, [x, y]] of Object.entries(raw)) {
+    result[name] = [
+      0.07 + 0.86 * (x - minX) / (maxX - minX),
+      0.12 + 0.76 * (1 - (y - minY) / (maxY - minY))
+    ];
+  }
+  return result;
+}
+const NORM_POS = normalise(RAW_POS);
+
+const NODES = Object.keys(GRAPH);
+const EDGES = [];
+const edgeSeen = new Set();
+for (const [a, nbrs] of Object.entries(GRAPH)) {
+  for (const [b, w] of Object.entries(nbrs)) {
+    const key = [a,b].sort().join('|');
+    if (!edgeSeen.has(key)) { edgeSeen.add(key); EDGES.push([a,b,w]); }
+  }
+}
+
+// Euclidean heuristic
+function heuristic(a, b) {
+  const [ax,ay] = RAW_POS[a], [bx,by] = RAW_POS[b];
+  return Math.sqrt((ax-bx)**2 + (ay-by)**2);
+}
+
+function pathCost(path) {
+  let c = 0;
+  for (let i = 0; i < path.length-1; i++) c += GRAPH[path[i]][path[i+1]];
+  return c;
+}
+
+// ─── Algorithms ──────────────────────────────────────────────────────────────
+function runDFS(start, goal) {
+  const steps = [];
+  const stack = [[start, [start]]];
+  const visited = new Set();
+  while (stack.length) {
+    const [cur, path] = stack.pop();
+    if (visited.has(cur)) continue;
+    visited.add(cur);
+    steps.push({ explored: [...visited], current: cur, path: cur === goal ? [...path] : [] });
+    if (cur === goal) return { path, cost: pathCost(path), nodes: visited.size, steps };
+    for (const nb of Object.keys(GRAPH[cur]).reverse()) {
+      if (!visited.has(nb)) stack.push([nb, [...path, nb]]);
+    }
+  }
+  return { path: null, cost: Infinity, nodes: visited.size, steps };
+}
+
+function runBFS(start, goal) {
+  const steps = [];
+  const queue = [[start, [start]]];
+  const visited = new Set();
+  while (queue.length) {
+    const [cur, path] = queue.shift();
+    if (visited.has(cur)) continue;
+    visited.add(cur);
+    steps.push({ explored: [...visited], current: cur, path: cur === goal ? [...path] : [] });
+    if (cur === goal) return { path, cost: pathCost(path), nodes: visited.size, steps };
+    for (const nb of Object.keys(GRAPH[cur])) {
+      if (!visited.has(nb)) queue.push([nb, [...path, nb]]);
+    }
+  }
+  return { path: null, cost: Infinity, nodes: visited.size, steps };
+}
+
+function runAStar(start, goal) {
+  const steps = [];
+  // [f, g, node, path]
+  const open = [[heuristic(start, goal), 0, start, [start]]];
+  const visited = {};
+  while (open.length) {
+    open.sort((a,b) => a[0]-b[0]);
+    const [f, g, cur, path] = open.shift();
+    if (visited[cur] !== undefined) continue;
+    visited[cur] = g;
+    const exploredSet = Object.keys(visited);
+    steps.push({ explored: exploredSet, current: cur, path: cur === goal ? [...path] : [], g, f });
+    if (cur === goal) return { path, cost: g, nodes: exploredSet.length, steps };
+    for (const [nb, w] of Object.entries(GRAPH[cur])) {
+      if (!(nb in visited)) {
+        const ng = g + w;
+        open.push([ng + heuristic(nb, goal), ng, nb, [...path, nb]]);
+      }
+    }
+  }
+  return { path: null, cost: Infinity, nodes: Object.keys(visited).length, steps };
+}
+
+// ─── State ───────────────────────────────────────────────────────────────────
+let selectedAlgo = 'A*';
+let selectedOrigin = 'Warehouse';
+let selectedGoal = 'Customer';
+let resultPath = [];
+let exploredSet = new Set();
+let stepSteps = [];
+let stepIdx = 0;
+let stepTimer = null;
+let isStepping = false;
+let clickCount = 0;
+let W, H;
+
+const canvas = document.getElementById('gc');
+const ctx = canvas.getContext('2d');
+
+function np(name) {
+  const [rx, ry] = NORM_POS[name];
+  return { x: rx * W, y: ry * H };
+}
+
+const ALGO_COLORS = { 'DFS': '#f97316', 'BFS': '#818cf8', 'A*': '#00d4a8' };
+
+function draw(explored, pathArr, currentNode) {
+  ctx.clearRect(0, 0, W, H);
+  const pathSet = new Set(pathArr);
+  const col = ALGO_COLORS[selectedAlgo];
+
+  // Draw edges
+  for (const [a, b, w] of EDGES) {
+    const pa = np(a), pb = np(b);
+    const inPath = pathArr.length > 1 &&
+      pathArr.indexOf(a) !== -1 &&
+      Math.abs(pathArr.indexOf(a) - pathArr.indexOf(b)) === 1;
+
+    ctx.beginPath();
+    ctx.moveTo(pa.x, pa.y);
+    ctx.lineTo(pb.x, pb.y);
+    if (inPath) {
+      ctx.strokeStyle = col;
+      ctx.lineWidth = 3.5;
+      ctx.setLineDash([]);
+    } else {
+      ctx.strokeStyle = '#e2e8f0';
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([]);
+    }
+    ctx.stroke();
+
+    // Edge weight label
+    const mx = (pa.x + pb.x) / 2;
+    const my = (pa.y + pb.y) / 2;
+    ctx.font = `10px 'Space Mono', monospace`;
+    ctx.fillStyle = inPath ? col : '#94a3b8';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    // Small offset to avoid overlapping edge
+    const dx = pb.y - pa.y, dy = -(pb.x - pa.x);
+    const len = Math.sqrt(dx*dx + dy*dy) || 1;
+    ctx.fillText(w, mx + (dx/len)*12, my + (dy/len)*12);
+  }
+
+  // Draw nodes
+  const R = Math.max(18, Math.min(24, W/32));
+  for (const name of NODES) {
+    const p = np(name);
+    const isStart = name === selectedOrigin;
+    const isGoal = name === selectedGoal;
+    const inPath = pathSet.has(name);
+    const isExplored = explored.has(name);
+    const isCurrent = name === currentNode;
+
+    // Glow for path nodes
+    if (inPath && pathArr.length > 1) {
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, R + 8, 0, Math.PI*2);
+      const grad = ctx.createRadialGradient(p.x, p.y, R, p.x, p.y, R+8);
+      grad.addColorStop(0, col + '55');
+      grad.addColorStop(1, col + '00');
+      ctx.fillStyle = grad;
+      ctx.fill();
+    }
+
+    // Ring for current node
+    if (isCurrent) {
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, R + 6, 0, Math.PI*2);
+      ctx.strokeStyle = col + 'aa';
+      ctx.lineWidth = 2;
+      ctx.setLineDash([4,3]);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+
+    // Node circle
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, R, 0, Math.PI*2);
+
+    if (isStart) {
+      ctx.fillStyle = '#dbeafe';
+    } else if (isGoal) {
+      ctx.fillStyle = '#d1fae5';
+    } else if (inPath && pathArr.length > 1) {
+      ctx.fillStyle = col + '22';
+    } else if (isExplored) {
+      ctx.fillStyle = '#fff7ed';
+    } else {
+      ctx.fillStyle = '#f8fafc';
+    }
+    ctx.fill();
+
+    // Border
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, R, 0, Math.PI*2);
+    if (isStart) ctx.strokeStyle = '#2563eb';
+    else if (isGoal) ctx.strokeStyle = '#059669';
+    else if (inPath && pathArr.length > 1) ctx.strokeStyle = col;
+    else if (isExplored) ctx.strokeStyle = '#ea580c';
+    else ctx.strokeStyle = '#cbd5e1';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // Label
+    const short = name === 'Warehouse' ? 'WH' : name === 'Customer' ? 'GOAL' : name;
+    ctx.font = `bold ${Math.max(9, R*0.5)}px 'Syne', sans-serif`;
+    ctx.fillStyle = isStart ? '#1d4ed8' : isGoal ? '#065f46' : (inPath && pathArr.length > 1) ? col : '#334155';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(short, p.x, p.y);
+
+    // Node name below
+    ctx.font = `9px 'Space Mono', monospace`;
+    ctx.fillStyle = '#94a3b8';
+    ctx.fillText(name, p.x, p.y + R + 10);
+  }
+}
+
+// ─── UI Actions ──────────────────────────────────────────────────────────────
+function selectAlgo(algo) {
+  selectedAlgo = algo;
+  document.getElementById('btn-dfs').className = algo === 'DFS' ? 'algo-btn active-dfs' : 'algo-btn';
+  document.getElementById('btn-bfs').className = algo === 'BFS' ? 'algo-btn active-bfs' : 'algo-btn';
+  document.getElementById('btn-astar').className = algo === 'A*' ? 'algo-btn active-astar' : 'algo-btn';
+  document.getElementById('s-algo').textContent = algo;
+  document.getElementById('s-algo').className = `stat-val colored-${algo === 'A*' ? 'astar' : algo.toLowerCase()}`;
+}
+
+function runSelected() {
+  clearStepTimer();
+  isStepping = false;
+  document.getElementById('step-btn').className = 'step-btn';
+  const res = compute(selectedAlgo, selectedOrigin, selectedGoal);
+  applyResult(res, false);
+}
+
+function compute(algo, start, goal) {
+  if (algo === 'DFS') return runDFS(start, goal);
+  if (algo === 'BFS') return runBFS(start, goal);
+  return runAStar(start, goal);
+}
+
+function applyResult(res, animate) {
+  resultPath = res.path || [];
+  exploredSet = new Set(res.steps.flatMap(s => s.explored));
+  draw(exploredSet, resultPath, null);
+  updateStats(res.cost, res.nodes, resultPath.length);
+  renderPath(resultPath);
+  renderLog(res.steps, -1);
+}
+
+function toggleStep() {
+  if (isStepping) {
+    clearStepTimer();
+    isStepping = false;
+    document.getElementById('step-btn').className = 'step-btn';
+    return;
+  }
+  clearStepTimer();
+  isStepping = true;
+  document.getElementById('step-btn').className = 'step-btn stepping';
+  resultPath = [];
+  exploredSet = new Set();
+  const res = compute(selectedAlgo, selectedOrigin, selectedGoal);
+  stepSteps = res.steps;
+  // Store final for display
+  window._finalResult = res;
+  stepIdx = 0;
+  clearLog();
+  playStep();
+}
+
+function playStep() {
+  if (!isStepping) return;
+  if (stepIdx >= stepSteps.length) {
+    isStepping = false;
+    document.getElementById('step-btn').className = 'step-btn';
+    return;
+  }
+  const s = stepSteps[stepIdx];
+  const expl = new Set(s.explored);
+  const pathNow = s.path.length ? s.path : resultPath;
+  if (s.path.length) resultPath = s.path;
+  draw(expl, resultPath, s.current);
+  appendLog(stepIdx, s);
+  if (s.path.length) {
+    const res = window._finalResult;
+    updateStats(res.cost, res.nodes, resultPath.length);
+    renderPath(resultPath);
+  }
+  stepIdx++;
+  stepTimer = setTimeout(playStep, 650);
+}
+
+function clearStepTimer() {
+  if (stepTimer) clearTimeout(stepTimer);
+  stepTimer = null;
+}
+
+function resetAll() {
+  clearStepTimer();
+  isStepping = false;
+  resultPath = [];
+  exploredSet = new Set();
+  document.getElementById('step-btn').className = 'step-btn';
+  document.getElementById('s-cost').textContent = '—';
+  document.getElementById('s-nodes').textContent = '—';
+  document.getElementById('s-hops').textContent = '—';
+  document.getElementById('s-optimal').textContent = '—';
+  document.getElementById('path-display').innerHTML = 'Select origin & goal, choose an algorithm, then click <strong>Find Route</strong>.';
+  clearLog();
+  ['card-cost','card-nodes','card-hops','card-algo','card-optimal'].forEach(id => {
+    document.getElementById(id).className = 'stat-card';
+  });
+  draw(new Set(), [], null);
+}
+
+function updateStats(cost, nodes, hops) {
+  const cl = selectedAlgo === 'A*' ? 'astar' : selectedAlgo.toLowerCase();
+  document.getElementById('s-cost').textContent = cost === Infinity ? '∞' : cost;
+  document.getElementById('s-cost').className = `stat-val colored-${cl}`;
+  document.getElementById('s-nodes').textContent = nodes;
+  document.getElementById('s-hops').textContent = hops > 0 ? (hops - 1) : '—';
+  document.getElementById('s-algo').textContent = selectedAlgo;
+  document.getElementById('s-algo').className = `stat-val colored-${cl}`;
+  // Optimal check (A* always optimal if admissible heuristic)
+  const isOpt = selectedAlgo === 'A*';
+  document.getElementById('s-optimal').textContent = isOpt ? '✓ Yes' : '✗ No';
+  document.getElementById('s-optimal').style.color = isOpt ? 'var(--astar-col)' : 'var(--dfs-col)';
+  ['card-cost','card-nodes','card-hops','card-optimal'].forEach(id => {
+    document.getElementById(id).className = `stat-card highlight-${cl}`;
+  });
+}
+
+function renderPath(path) {
+  if (!path || !path.length) {
+    document.getElementById('path-display').innerHTML = '<span style="color:var(--dfs-col)">No path found.</span>';
+    return;
+  }
+  const col = ALGO_COLORS[selectedAlgo];
+  let html = `<span style="color:${col};font-size:10px;font-family:var(--font-mono);text-transform:uppercase;letter-spacing:.1em">${selectedAlgo} path → </span>`;
+  path.forEach((n, i) => {
+    if (i > 0) html += `<span class="path-arrow"> → </span>`;
+    html += `<span class="path-node" style="color:${col}">${n}</span>`;
+  });
+  document.getElementById('path-display').innerHTML = html;
+}
+
+function clearLog() {
+  document.getElementById('log-scroll').innerHTML = '<div class="log-line" style="color:var(--text-muted)">Waiting for run...</div>';
+}
+
+function renderLog(steps, highlight) {
+  const el = document.getElementById('log-scroll');
+  el.innerHTML = steps.map((s, i) => {
+    const gStr = s.g !== undefined ? ` | g=${s.g}` : '';
+    const fStr = s.f !== undefined ? ` f=${s.f.toFixed(1)}` : '';
+    return `<div class="log-line ${i === highlight ? 'current' : ''}">Step ${i+1}: Explore "${s.current}"${gStr}${fStr}</div>`;
+  }).join('');
+  el.scrollTop = el.scrollHeight;
+}
+
+function appendLog(idx, s) {
+  const el = document.getElementById('log-scroll');
+  if (el.children.length === 1 && el.children[0].style.color) el.innerHTML = '';
+  const d = document.createElement('div');
+  d.className = 'log-line current';
+  const gStr = s.g !== undefined ? ` | g=${s.g}` : '';
+  const fStr = s.f !== undefined ? ` f=${s.f.toFixed(1)}` : '';
+  d.textContent = `Step ${idx+1}: "${s.current}"${gStr}${fStr}`;
+  // Remove 'current' from previous
+  el.querySelectorAll('.current').forEach(e => e.classList.remove('current'));
+  el.appendChild(d);
+  el.scrollTop = el.scrollHeight;
+}
+
+// Canvas click
+canvas.addEventListener('click', function(e) {
+  const rect = canvas.getBoundingClientRect();
+  const scaleX = W / rect.width;
+  const scaleY = H / rect.height;
+  const cx = (e.clientX - rect.left) * scaleX;
+  const cy = (e.clientY - rect.top) * scaleY;
+  const R = Math.max(18, Math.min(24, W/32));
+  for (const name of NODES) {
+    const p = np(name);
+    if (Math.sqrt((cx-p.x)**2+(cy-p.y)**2) < R+4) {
+      clickCount++;
+      if (clickCount % 2 === 1) {
+        selectedOrigin = name;
+        document.getElementById('sel-origin').value = name;
+      } else {
+        selectedGoal = name;
+        document.getElementById('sel-goal').value = name;
+      }
+      resetAll();
+      break;
+    }
+  }
+});
+
+// Populate selects
+function populateSelects() {
+  const so = document.getElementById('sel-origin');
+  const sg = document.getElementById('sel-goal');
+  NODES.forEach(n => {
+    const o1 = document.createElement('option'); o1.value = n; o1.textContent = n;
+    if (n === selectedOrigin) o1.selected = true;
+    so.appendChild(o1);
+    const o2 = document.createElement('option'); o2.value = n; o2.textContent = n;
+    if (n === selectedGoal) o2.selected = true;
+    sg.appendChild(o2);
+  });
+  so.onchange = () => { selectedOrigin = so.value; resetAll(); };
+  sg.onchange = () => { selectedGoal = sg.value; resetAll(); };
+}
+
+function resize() {
+  const cw = canvas.parentElement.clientWidth;
+  W = cw;
+  H = Math.round(cw * 0.42);
+  canvas.width = W;
+  canvas.height = H;
+  draw(exploredSet, resultPath, null);
+}
+
+window.addEventListener('resize', resize);
+populateSelects();
+selectAlgo('A*');
+resize();
+draw(new Set(), [], null);
+</script>
+</body>
+</html>

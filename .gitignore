@@ -1,0 +1,10 @@
+# Byte-compiled
+__pycache__/
+*.py[cod]
+
+# Media
+*.mp4
+
+# OS files
+.DS_Store
+Thumbs.db
